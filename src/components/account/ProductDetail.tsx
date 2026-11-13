@@ -1,15 +1,17 @@
 'use client'
 
-import { type Activation, type License, useInventory, useOwnedProduct, useProductActivations, useProductLicenses } from '@moonbase.sh/react'
+import { type Activation, type License, useInventory, useOwnedProduct, useProductActivations, useProductLicenses, useReviews } from '@moonbase.sh/react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { formatDate } from '@/lib/format'
 import { DownloadList } from '../DownloadList'
 import { ArrowLeftIcon, DownloadIcon } from '../icons'
+import { ReviewsYourReview } from '../reviews/YourReview'
 
 /** Downloads, activated devices and external licenses for one product the customer owns. */
 export function AccountProductDetail({ productId }: { productId: string }) {
   const { revokeActivation } = useInventory()
+  const { enabled: reviewsEnabled } = useReviews()
   const owned = useOwnedProduct(productId)
   const product = owned.data
 
@@ -139,6 +141,14 @@ export function AccountProductDetail({ productId }: { productId: string }) {
                           </>
                         )}
                   </section>
+
+                  {/* Reviews, for a product they bought here or have reviewed */}
+                  {reviewsEnabled && (product.mayReview || product.reviewed) && (
+                    <section className="detail-section">
+                      <h4>Your review</h4>
+                      <ReviewsYourReview productId={product.id} productName={product.name} />
+                    </section>
+                  )}
                 </>
               )}
     </div>

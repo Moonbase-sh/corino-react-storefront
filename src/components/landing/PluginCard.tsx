@@ -4,6 +4,7 @@ import { useCartActions, usePrice, useProduct } from '@moonbase.sh/react'
 import type { ReactNode } from 'react'
 import { useUi } from '@/lib/ui'
 import { ArrowRightIcon, DownloadIcon } from '../icons'
+import { ReviewsRatingLine } from '../reviews/RatingLine'
 
 interface PluginCardProps {
   productId: string
@@ -65,6 +66,7 @@ export function PluginCard(props: PluginCardProps) {
           <h2 className="plugin-name">
             <span className={`${variant}-gradient`}>{variant === 'halo' ? 'HALO' : 'DRIFT'}</span>
           </h2>
+          <ReviewsRatingLine productId={productId} />
           <p className="plugin-tagline">{props.tagline}</p>
           <p className="plugin-desc">{props.description}</p>
           <div className="spec-strip">{props.specs}</div>
