@@ -7,6 +7,7 @@ import { DemoBanner } from '@/components/DemoBanner'
 import { LoginModal } from '@/components/LoginModal'
 import { ProductDownloadModal } from '@/components/ProductDownloadModal'
 import { Providers } from '@/components/Providers'
+import { ReviewsModal } from '@/components/reviews/Modal'
 import { SiteFooter } from '@/components/SiteFooter'
 import { SiteNav } from '@/components/SiteNav'
 import { StorefrontEffects } from '@/components/StorefrontEffects'
@@ -37,6 +38,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           {children}
           <SiteFooter />
           <CartDrawer />
+          {/* Before the login modal, so signing in to vote opens on top of it */}
+          <ReviewsModal />
           <LoginModal />
           <ProductDownloadModal />
           <CookieBanner />

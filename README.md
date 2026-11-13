@@ -19,6 +19,7 @@ Every flow a plugin shop needs, wired with SDK hooks:
 - **Product detail** at `/account/products/[id]` showing OS-aware download buttons (`useOwnedProduct`, `downloadProduct`), device activations with revoke (`useProductActivations`, `revokeActivation`), and external licenses rendered for key codes, file downloads, and iLok deposits (`useProductLicenses`).
 - **License activation** at `/activate` covering both activation modes: the `?token=…` online flow via `useActivationRequest` (activating straight away with an owned license), and the offline machine-file upload via `activateProduct(token, ActivationMethod.Offline)`.
 - **Cookie consent** banner that asks only the visitors the store needs consent from, using `useAttributionConsent()`, so the SDK knows whether to keep the ad click IDs they arrived with.
+- **Product reviews**: each plugin's stars and review count under its name, and a reviews modal with the score, a filter by stars, sorting, "Show more", translations and helpful votes. A customer who bought a plugin here writes, edits and withdraws their review in the same modal or on the product's account page. All of it is `useReviews()`.
 
 ## Run it locally
 
@@ -102,12 +103,14 @@ Any host that runs Next.js works the same way.
 │   │   ├── AuthPage.tsx              # shared shell for callback pages
 │   │   ├── landing/                  # hero, plugin cards, artwork, bundle, features, trust
 │   │   ├── account/                  # shell, profile, products, product detail, purchases, redeem
-│   │   └── activation/               # online flow, offline upload, file input, product card
+│   │   ├── activation/               # online flow, offline upload, file input, product card
+│   │   └── reviews/                  # rating line, modal, list, card, your review, form, stars
 │   └── lib/
 │       ├── config.ts                 # Moonbase endpoint + product IDs
 │       ├── catalog.ts                # fetches the catalog on the server (`fetchCatalog`)
-│       ├── ui.tsx                    # what's open: cart, login and download modals, cookie banner
+│       ├── ui.tsx                    # what's open: cart, login, download and reviews modals, cookie banner
 │       ├── newsletter.ts             # whether this browser joined the newsletter
+│       ├── reviews.ts                # review wording, form checks, terms link
 │       └── format.ts                 # dates and error messages
 ├── public/assets/                    # plugin artwork (SVG + PNG)
 ├── next.config.ts
@@ -180,7 +183,9 @@ Every piece of data the UI reads comes from one of these. Hooks return plain val
 | `useCommunicationPreferences()` | `SiteFooter`: `subscribe({ email })` for the newsletter |
 | `useActivationRequest(token, { autoFulfill: true })` | `activation/AutoActivation`: `activationRequest`, `fulfillTrial`, `loading`, `fulfilling`, `completing`, `error` |
 | `useAttributionConsent()` | `CookieBanner`: `required`, `answer`, `setAnswer` |
-| `useStorefront()`, `useStorefrontEvent()` | `StorefrontEffects`: the storefront itself, and its `checkoutCompleted` event |
+| `useStorefront()`, `useStorefrontEvent()` | `StorefrontEffects`: the storefront itself, and its `checkoutCompleted` event. `reviews/YourReview` refreshes the catalog with it after a review is posted |
+| `useReviews()` | `reviews/*`, `account/ProductDetail`: `enabled`, `getReviews`, `getMoreReviews`, `getMyReview`, `saveReview`, `withdrawReview`, `voteOnReview` |
+| `useVendor()` | `reviews/List`, `reviews/Form`: the store's name, which signs its replies and the consent line |
 
 **Product cards don't render when the cart changes.** `usePrice`, `useCurrency` and `useCartActions` only render again when what they return changes, so the plugin cards and the bundle section stay put while the cart fills. `useCart` renders on every cart change, so only the nav badge and the drawer use it. Cart lines read their product or bundle from the line itself (`item.product`, `item.bundle`), which `useCart` fills in from the catalog.
 
@@ -213,6 +218,10 @@ Every user-facing action calls a single SDK function. There's no command layer o
 | Answer the cookie banner | `useAttributionConsent().setAnswer(granted)` |
 | Redeem voucher | `useVoucher().redeem(code)` |
 | Join the newsletter | `useCommunicationPreferences().subscribe({ email })` |
+| Read a product's reviews | `useReviews().getReviews(productId, { sort, stars })`, then `getMoreReviews(next)` |
+| Write or edit a review | `useReviews().saveReview(productId, { rating, title, body, displayName, anonymous, allowUse: true }, existing)` |
+| Withdraw a review | `useReviews().withdrawReview(productId)` |
+| Vote on a review | `useReviews().voteOnReview(productId, reviewId, 'up' \| 'down' \| 'none')` |
 
 A checkout's promise settles when its overlay closes, which can be minutes later, so the cart drawer keeps its "Loading…" state in `useState` rather than in a transition, as the SDK's README advises.
 
@@ -278,6 +287,20 @@ const open = cookieSettingsOpen || (required === true && answer === null)
 - "Cookie settings" in the footer opens the banner again for anyone (`cookieSettingsOpen` in `lib/ui.tsx`), so an answer can be changed later.
 
 If your site already has a consent manager (Cookiebot, OneTrust, …), drop the banner and call `storefront.setAttributionConsent(granted)` from its marketing-consent callback instead. That one remembers nothing, since the consent manager reports on every page.
+
+### 8. Reviews
+
+Reviews stay hidden until the store takes them: turn on "Product reviews" under Account settings > Storefront > Features in Moonbase. `useReviews().enabled` follows that setting, and everything on the site that shows reviews checks it.
+
+- **The score comes with the catalog.** Each product's `rating` (the average, the count, and how many reviews have each number of stars) is part of the catalog, so the prerendered page already has the stars under HALO and DRIFT (`components/reviews/RatingLine.tsx`). `hasRating(rating)` says whether there's a score to show: a product with no published reviews has none.
+- **The reviews load when the modal opens** (`components/reviews/List.tsx`): `getReviews(productId, { sort, stars })` for the first page and `getMoreReviews(next)` for each "Show more". They load again when the visitor signs in or out, since each review says how the reader voted and whether it's their own. A vote comes back with the review's new totals, so the list isn't read again.
+- **Only customers who bought a product here can review it.** For whoever is signed in, the catalog's `mayReview` says whether they may and `reviewed` whether they have a review standing, and the site offers "Write a review" or "Your review" only then. `getMyReview(productId)` says where their review stands (being checked, published, not published, or asking for help, which reviews aren't for) and whether they may change it now (`components/reviews/YourReview.tsx`).
+- **Posting needs the reviewer's agreement.** `saveReview(productId, review, existing)` sends `allowUse: true`, which lets the store use the review in its marketing, so the form says so next to its button and links the "Reviews" section of the store's terms (`<store>/terms-of-use#reviews`). `existing` is true once they have a review, in whatever state: a second one is refused.
+- **A new review is checked before it shows**, usually within a minute, so the site asks `getMyReview` again every few seconds until it has been, then refreshes the catalog (`useStorefront().refreshCatalog()`) for the new score.
+
+A review in another language comes with an English translation, shown unless the reader's browser reads the original, with a switch between the two. The wording of every review state follows Moonbase's own review screens, and lives in `lib/reviews.ts` with the form's checks against `REVIEW_LIMITS`.
+
+Review-request emails link to Moonbase's own review page, not to this site, so there's no callback page for them.
 
 ## Differences from the Vue version
 
