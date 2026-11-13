@@ -39,8 +39,6 @@ The product and bundle IDs (`halo`, `drift`, `duo-bundle`) live in `src/lib/conf
 
 `npm run build && npm start` runs the production build locally.
 
-> **SDK version.** `@moonbase.sh/react` is pinned to a prerelease build (`0.0.0-next-20261111174148`) for `getStorefront`, `fetchCatalog`, the account data hooks, `usePrice` and `useAttributionConsent`, which aren't in 1.1.0. Move the pin to the first release that has them.
-
 ## Deployment
 
 The site runs on [Vercel](https://vercel.com), as the `corino-react-storefront` project in the Moonbase team, with no configuration beyond Vercel's Next.js defaults. `corino-react.moonbase.sh` is a CNAME in the `moonbase.sh` Route 53 zone pointing at Vercel, next to `corino-vue.moonbase.sh` for the Vue version.
